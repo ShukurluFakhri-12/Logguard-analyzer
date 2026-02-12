@@ -1,4 +1,5 @@
 import os
+import sqlite3
 document = 'Module_structure'
 mainfile = 'main.py'
 testfile = 'access.log'
@@ -58,3 +59,43 @@ def generate_report(source_file, output_file):
 
 generate_report(log_file, report_file)
 print(f"\n[!] REPORT HAS BEEN CREATED: {report_file}")
+
+
+db_path = os.path.join(document, "logs_archive.db")
+
+def save_to_database(db_name, data_dict):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ip_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT,
+            request_count INTEGER
+        )
+    """)
+    cursor.execute("DELETE FROM ip_stats")
+    
+    
+    for ip, count in data_dict.items():
+        cursor.execute("INSERT INTO ip_stats (ip_address, request_count) VALUES (?, ?)", (ip, count))
+    
+    conn.commit()
+    conn.close()
+
+def get_suspicious_from_db(db_name):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("SELECT ip_address, request_count FROM ip_stats WHERE request_count >= 2")
+    rows = cursor.fetchall()
+    
+    conn.close()
+    return rows
+
+save_to_database(db_path, results)
+print(f"[!] Data archieved to SQLite base: {db_path}")
+
+alerts = get_suspicious_from_db(db_path)
+if alerts:
+    print("\n Danger information comeing from base:")
+    for row in alerts:
+        print(f"Attention: {row[0]} adress {row[1]} times asked for inquery!")
